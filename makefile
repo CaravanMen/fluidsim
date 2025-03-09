@@ -11,21 +11,22 @@ INCDIR=include
 OUT=build
 
 # Collect source files
-CSRC=${wildcard ./${SRCDIR}/*.c}
-CXXSRC=${wildcard ./${SRCDIR}/*.cpp}
+CSRC=${wildcard ${SRCDIR}/*.c}
+CXXSRC=${wildcard ${SRCDIR}/*.cpp}
+
 # Directive files names
-OUTFILES=${CXXSRC:./${SRCDIR}/%.cpp=./${OUT}/%.o} ${CSRC:./${SRCDIR}/%.c=${OUT}/%.o}
+OUTFILES=${CXXSRC:${SRCDIR}/%.cpp=${OUT}/%.o} ${CSRC:${SRCDIR}/%.c=${OUT}/%.o}
 
 # Dependency files
-DEPENDENCIES=${OUTFILES:./${OUT}/%.o=./{OUT}/%.d}
+DEPENDENCIES=${OUTFILES:%.o=%.d}
 
 # Executable name
 TARGET=test
 
 # Compiler arguments
-CXFLAGS=-L${LIBDIR} -I${INCDIR} -lglfw3 -lGL
+CXFLAGS= -L${LIBDIR} -I${INCDIR} -lglfw3 -lGL -MMD
 
-default: deps run
+default: debug
 
 ${TARGET}: ${OUTFILES}
 	@echo "Linking executable $@ from object files $^"
@@ -34,17 +35,21 @@ ${TARGET}: ${OUTFILES}
 ${OUT}/%.o: ${SRCDIR}/%.cpp
 	@echo "Building $@ from $^"
 	@mkdir -p ${dir $@}
-	g++ -c $^ ${CXFLAGS} -o $@ -MMD
+	g++ $< ${CXFLAGS} -o $@ -c
 	
 ${OUT}/%.o: ${SRCDIR}/%.c
 	@echo "Building $@ from $^"
 	@mkdir -p ${dir $@}
-	g++ -c $^ ${CXFLAGS} -o $@ -MMD
+	g++ $< ${CXFLAGS} -o $@ -c
 
 -include ${DEPENDENCIES}
 
+# Debug and running
+debug | run: ${TARGET}
+	@echo "------ DEBUGGING BEGINS HERE ------"
+	@./${TARGET}
 
-
+# Dependency stuff
 # GLFW Stuff
 temp/glfw-master:
 	@echo "Downloading GLFW from online"
@@ -52,6 +57,8 @@ temp/glfw-master:
 	@echo "Downloading GLFW library"
 	wget https://github.com/glfw/glfw/archive/refs/heads/master.zip -O ./temp/glfw.zip
 	unzip ./temp/glfw.zip -d ./temp
+
+temp/glfw-master/include/GLFW/glfw.h | temp/glfw-master/include/GLFW/glfwnative.h: temp/glfw-master
 
 ${INCDIR}/GLFW/glfw.h: temp/glfw-master/include/GLFW/glfw.h
 	cp -dr ./temp/glfw-master/include/GLFW ./${INCDIR}
@@ -71,37 +78,26 @@ ${LIBDIR}/libglfw3.a: temp/glfw-master
 	cp ./temp/glfw-master/build/src/libglfw3.a ./${LIBDIR}/
 
 # GLAD stuff
-temp/glad/include/%.h temp/glad/include/%.c:
-	@echo "Uncompressing GLAD compressed archive"
-	unzip ./temp/glad.zip -d ./temp/glad
+temp/glad:
+	unzip $@ -d ./temp/glad
+
+temp/glad/include/glad/glad.h | temp/glad/include/KHR/khrplatform.h | temp/glad/src/glad.c: temp/glad
+${INCDIR}/glad/glad.h: temp/glad/include/glad/glad.h
+	mkdir -p ${dir $@}
+	cp $^ $@
 
 ${INCDIR}/KHR/khrplatform.h: temp/glad/include/KHR/khrplatform.h
-	@echo "Copying $@ GLAD include file"
-	@mkdir -p ${dir $@}
+	mkdir -p ${dir $@}
 	cp $^ $@
-
-${INCDIR}/glad/glad.h: temp/glad/include/glad/glad.h
-	@echo "Copying $@ GLAD include file"
-	@mkdir -p ${dir $@}
+	
+${SRCDIR}/glad.c: temp/glad/src/glad.c
+	mkdir -p ${dir $@}
 	cp $^ $@
-
-${SRCDIR}/%.c: temp/glad/src/%.c
-	@echo "Copying $@ GLAD loader file"
-	@mkdir -p ${dir $@}
-	cp $^ $@
-
 # Dependencies download
 deps: ${LIBDIR}/libglfw3.a ${INCDIR}/GLFW/glfw3.h ${INCDIR}/GLFW/glfw3native.h ${INCDIR}/glad/glad.h ${INCDIR}/KHR/khrplatform.h ${SRCDIR}/glad.c
 
-
-# Debug and running
-debug | run: ${TARGET}
-	@echo "------ DEBUGGING BEGINS HERE ------"
-	@./${TARGET}
 clean:
-	@# @echo "Cleaning temporary files"
-	@# # rm -rd ./temp/* -f
-	@echo "Cleaning the build files";
+	@echo "Cleaning the build files"
 	rm -rd ./build/* -f
 
 # Setting up phony targets

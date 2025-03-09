@@ -2,6 +2,14 @@
     "files.associations": {
         "string": "cpp",
         "string.h": "c",
-        "glad.h": "c"
+        "glad.h": "c",
+        "openglhandler.h": "c",
+        "glfw3.h": "c",
+        "format": "cpp",
+        "cstring": "cpp",
+        "iostream": "cpp",
+        "*.tcc": "cpp",
+        "cmath": "cpp",
+        "chrono": "cpp"
     }
 }
